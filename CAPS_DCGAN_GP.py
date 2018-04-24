@@ -198,7 +198,7 @@ def run_model(lr=0.002,
         print('training start!')
 
 
-    start_time = time.time()
+    gen_iter_start_time = time.time()
     num_gen_iter=1000
     gen_iter=0
     disc_iter=0
@@ -263,13 +263,13 @@ def run_model(lr=0.002,
             #adding gradient penalty
 
 
-            pdb.set_trace()
-
             alpha=torch.FloatTensor([1]).uniform_(0,1)
-
+             
+            if USE_CUDA:
+                alpha= Variable(alpha.cuda())
             difference= G_result.data - x_.data
 
-            interpolate= Variable(x_.data + alpha*difference, requires_grad=True)
+            interpolate= Variable(x_.data + alpha.data*difference, requires_grad=True)
 
             D_interpolate= D(interpolate)
 
@@ -283,8 +283,7 @@ def run_model(lr=0.002,
             interpolate_grad=interpolate.grad
 
             grad_penalty=lambda_*((interpolate_grad**2).sum()-1)**2
-
-            grad_penalty=Variable(grad_penalty, volatile=False)
+            grad_penalty=Variable(grad_penalty.data, volatile=False)
 
             D_train_loss = D_real_loss + D_fake_loss + grad_penalty
 
@@ -297,6 +296,7 @@ def run_model(lr=0.002,
 
             # train generator G
 
+            G_train_loss=0
             if disc_iter==num_disc_iter: #start the generator training brooooooo
                 G.zero_grad()
 
@@ -322,35 +322,35 @@ def run_model(lr=0.002,
             #for m in range(num_m_inters):
 
 
-            if gen_iter%100==0 and USE_CAPS_D and SAVE_IMAGE:
-                tag=hyperparam_tag +"_"+ str(gen_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+'_caps'
-                p = 'MNIST_DCGAN_results/Random_results/MNIST_DCGAN_'+tag+'.png'
-                fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_DCGAN_'+tag+'.png'
+                if gen_iter%100==0 and USE_CAPS_D and SAVE_IMAGE:
+                    tag=hyperparam_tag +"_"+ str(gen_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+'_caps'
+                    p = 'MNIST_DCGAN_results/Random_results/MNIST_DCGAN_'+tag+'.png'
+                    fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_DCGAN_'+tag+'.png'
 
 
-                save_result(fixed_p,isFix=True,G=G)
-                save_result(p,isFix=False,G=G)
+                    save_result(fixed_p,isFix=True,G=G)
+                    save_result(p,isFix=False,G=G)
 
            
 
 
-            if verbose:
-                print('gen_iters: [%d/%d] disc_iter: [%d/%d] loss_d: %.3f loss_g: %.3f grad_penalty: %.3f' %  (gen_iter,num_gen_iter,disc_iter,num_disc_iter,D_train_loss.data[0],G_train_loss.data[0],grad_penalty))
+                if verbose:
+                    print('gen_iters: [%d/%d] disc_iter: [%d/%d] loss_d: %.3f loss_g: %.3f grad_penalty: %.3f' %  (gen_iter,num_gen_iter,disc_iter,num_disc_iter,D_train_loss.data[0],G_losses[-1],grad_penalty.data))
             
-            if gen_iter>=num_iter_limit and SAVE_TRAINING:
-                tag=hyperparam_tag +"_"+ str(gen_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+'_caps'
-                p = 'MNIST_DCGAN_results/Random_results/MNIST_DCGAN_'+tag+'.png'
-                fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_DCGAN_'+tag+'.png'
+                if gen_iter>=num_gen_iter and SAVE_TRAINING:
+                    tag=hyperparam_tag +"_"+ str(gen_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+'_caps'
+                    p = 'MNIST_DCGAN_results/Random_results/MNIST_DCGAN_'+tag+'.png'
+                    fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_DCGAN_'+tag+'.png'
 
-                save_result(fixed_p,isFix=True,G=G)
-                save_result(p,isFix=False,G=G)
+                    save_result(fixed_p,isFix=True,G=G)
+                    save_result(p,isFix=False,G=G)
 
-                torch.save(G.state_dict(), "MNIST_DCGAN_results/generator_param_"+tag+".pkl")
-                torch.save(D.state_dict(), "MNIST_DCGAN_results/discriminator_param_param_"+tag+".pkl")
-                with open('MNIST_DCGAN_results/train_hist_'+tag+'.pkl', 'wb') as f:
-                    pickle.dump(train_hist, f)
+                    torch.save(G.state_dict(), "MNIST_DCGAN_results/generator_param_"+tag+".pkl")
+                    torch.save(D.state_dict(), "MNIST_DCGAN_results/discriminator_param_param_"+tag+".pkl")
+                    with open('MNIST_DCGAN_results/train_hist_'+tag+'.pkl', 'wb') as f:
+                        pickle.dump(train_hist, f)
 
-                return
+                    return
 
             if disc_iter==num_disc_iter:
                 disc_iter=0
