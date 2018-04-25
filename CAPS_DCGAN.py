@@ -22,7 +22,7 @@ USE_CUDA=torch.cuda.is_available()
 
 class generator(nn.Module):
     # initializers
-    def __init__(self, d=128,img_size=32):
+    def __init__(self, d=128,img_size=32,output_channels=1):
         super(generator, self).__init__()
         self.img_size=img_size
         self.deconv1 = nn.ConvTranspose2d(100, d*8, 4, 1, 0)
@@ -35,9 +35,9 @@ class generator(nn.Module):
         if self.img_size==64:
             self.deconv4 = nn.ConvTranspose2d(d*2, d, 4, 2, 1)
             self.deconv4_bn = nn.BatchNorm2d(d)
-            self.deconv5 = nn.ConvTranspose2d(d, 1, 4, 2, 1)
+            self.deconv5 = nn.ConvTranspose2d(d, output_channels, 4, 2, 1)
         if self.img_size==32: 
-            self.deconv4= nn.ConvTranspose2d(d*2,1,4,2,1)
+            self.deconv4= nn.ConvTranspose2d(d*2,output_channels,4,2,1)
     # weight_init
     def weight_init(self, mean, std):
         for m in self._modules:
@@ -58,10 +58,14 @@ class generator(nn.Module):
 
 class discriminator(nn.Module):
     # initializers
-    def __init__(self, d=128,img_size=32):
+    def __init__(self, d=128,img_size=32,dataset='mnist'):
         super(discriminator, self).__init__()
+        self.output_channels=1
+        if dataset=='cifar10':
+            self.output_channels=3
+
         self.img_size=img_size
-        self.conv1 = nn.Conv2d(1, d, 4, 2, 1)
+        self.conv1 = nn.Conv2d(self.output_channels, d, 4, 2, 1)
         self.conv2 = nn.Conv2d(d, d*2, 4, 2, 1)
         self.conv2_bn = nn.BatchNorm2d(d*2)
         self.conv3 = nn.Conv2d(d*2, d*4, 4, 2, 1)
@@ -126,15 +130,21 @@ def save_result(path = 'result.png', isFix=False,G=None):
 
 
 # data_loader
-def get_data(batch_size=64,i_size=32):
+def get_data(batch_size=64,i_size=32, mode= 'mnist'):
     transform = transforms.Compose([
             transforms.Scale(i_size),
             transforms.ToTensor(),
             transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
     ])
-    train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('data', train=True, download=True, transform=transform),
-        batch_size=batch_size, shuffle=True)
+    if mode=='mnist':
+        train_loader = torch.utils.data.DataLoader(
+            datasets.MNIST('../data', train=True, download=True, transform=transform),
+            batch_size=batch_size, shuffle=True)
+
+    if mode=='cifar10':
+        train_loader = torch.utils.data.DataLoader(
+            datasets.CIFAR10('../data', train=True, download=True, transform=transform),
+            batch_size=batch_size, shuffle=True)
     return train_loader
 
 
@@ -150,20 +160,28 @@ def run_model(lr=0.002,
             SAVE_IMAGE=True, 
             num_iter_limit=5, 
             verbose=True, 
-            train_loader=train_loader, 
-            hyperparam_tag='1'):
+            train_loader=None, 
+            hyperparam_tag='1',
+            dataset=None):
+
+
+    if dataset != None:
+        train_loader=get_data(batch_size=batch_size,i_size=img_size, mode= dataset)
 
     # network
     if USE_CAPS_D:
-        D=CapsNet(reconstruction_bool=reconstruction_loss_bool,
-                    param=D_param,
-                    SN_bool=SN_bool) #already initlialized
+        D=CapsNet(reconstruction_bool=reconstruction_loss_bool,param=D_param,SN_bool=SN_bool,dataset=dataset) #already initlialized
     else:
-        D = discriminator(d=128)
+        D = discriminator(d=128,dataset=dataset)
         D.weight_init(mean=0.0, std=0.02)
 
     #generator
-    G = generator(d=128)
+    if dataset=='mnist':
+        G = generator(d=128,output_channels=1)
+
+    if dataset=='cifar10':
+        G = generator(d=128,output_channels=3)
+
     G.weight_init(mean=0.0, std=0.02)
 
 
@@ -179,12 +197,12 @@ def run_model(lr=0.002,
     D_optimizer = optim.Adam(D.parameters(), lr=lr, betas=(0.5, 0.999))
 
     # results save folder
-    if not os.path.isdir('MNIST_DCGAN_results'):
-        os.mkdir('MNIST_DCGAN_results')
-    if not os.path.isdir('MNIST_DCGAN_results/Random_results'):
-        os.mkdir('MNIST_DCGAN_results/Random_results')
-    if not os.path.isdir('MNIST_DCGAN_results/Fixed_results'):
-        os.mkdir('MNIST_DCGAN_results/Fixed_results')
+    if not os.path.isdir(dataset+'_DCGAN_results'):
+        os.mkdir(dataset+'_DCGAN_results')
+    if not os.path.isdir(dataset+'_DCGAN_results/Random_results'):
+        os.mkdir(dataset+'_DCGAN_results/Random_results')
+    if not os.path.isdir(dataset+'_DCGAN_results/Fixed_results'):
+        os.mkdir(dataset+'_DCGAN_results/Fixed_results')
 
     train_hist = {}
     train_hist['D_losses'] = []
@@ -204,7 +222,6 @@ def run_model(lr=0.002,
         epoch_start_time = time.time()
         for x_, _ in train_loader:
             # train discriminator D
-            pdb.set_trace()
             D.zero_grad()
 
             mini_batch = x_.size()[0]
@@ -270,57 +287,73 @@ def run_model(lr=0.002,
             G_losses.append(G_train_loss.data[0])
             num_iter += 1
 
-            #for m in range(num_m_inters):
-
+            if num_iter%10==0:
+                train_hist['D_losses'].append((num_iter,D_losses[-1]))
+                train_hist['G_losses'].append((num_iter,G_losses[-1]))
 
             if num_iter%100==0 and USE_CAPS_D and SAVE_IMAGE:
-                tag=hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+'_caps
-                p = 'MNIST_DCGAN_results/Random_results/MNIST_DCGAN_'+tag+'.png'
-                fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_DCGAN_'+tag+'.png'
-
+                tag=hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+'_caps'
+                p = dataset+'_DCGAN_results/Random_results/'+dataset+'_DCGAN_'+tag+'.png'
+                fixed_p = dataset+'_DCGAN_results/Fixed_results/'+dataset+'_DCGAN_'+tag+'.png'
 
                 save_result(fixed_p,isFix=True,G=G)
                 save_result(p,isFix=False,G=G)
-
-           
-
 
             if verbose:
                 print('epoch: [%d/%d] batch: [%d] loss_d: %.3f loss_g: %.3f' %  (epoch+1,train_epoch,num_iter,D_train_loss.data[0],G_train_loss.data[0]))
             
             if num_iter>=num_iter_limit and SAVE_TRAINING:
-                tag=hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+'_caps
-                p = 'MNIST_DCGAN_results/Random_results/MNIST_DCGAN_'+tag+'.png'
-                fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_DCGAN_'+tag+'.png'
+                tag=hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+'_caps'
+                p = dataset+'_DCGAN_results/Random_results/'+dataset+'_DCGAN_'+tag+'.png'
+                fixed_p = dataset+'_DCGAN_results/Fixed_results/'+dataset+'_DCGAN_'+tag+'.png'
 
                 save_result(fixed_p,isFix=True,G=G)
                 save_result(p,isFix=False,G=G)
 
-                torch.save(G.state_dict(), "MNIST_DCGAN_results/generator_param_"+tag+".pkl")
-                torch.save(D.state_dict(), "MNIST_DCGAN_results/discriminator_param_param_"+tag+".pkl")
-                with open('MNIST_DCGAN_results/train_hist_'+tag+'.pkl', 'wb') as f:
+                #torch.save(G.state_dict(), "MNIST_DCGAN_results/generator_param_"+tag+".pkl")
+                #torch.save(D.state_dict(), "MNIST_DCGAN_results/discriminator_param_param_"+tag+".pkl")
+                with open(dataset+'_DCGAN_results/train_hist_'+tag+'.pkl', 'wb') as f:
                     pickle.dump(train_hist, f)
 
                 return
 
-
         epoch_end_time = time.time()
         per_epoch_ptime = epoch_end_time - epoch_start_time
-        if verbose:
-            print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), train_epoch, per_epoch_ptime, torch.mean(torch.FloatTensor(D_losses)),
-                                                                  torch.mean(torch.FloatTensor(G_losses))))   
-        train_hist['D_losses'].append(torch.mean(torch.FloatTensor(D_losses)))
-        train_hist['G_losses'].append(torch.mean(torch.FloatTensor(G_losses)))
-        train_hist['per_epoch_ptimes'].append(per_epoch_ptime)
-
-
+        #if verbose:
+        #print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), train_epoch, per_epoch_ptime, torch.mean(torch.FloatTensor(D_losses)),torch.mean(torch.FloatTensor(G_losses))))   
     end_time = time.time()
     total_ptime = end_time - start_time
     train_hist['total_ptime'].append(total_ptime)
     
-
     if verbose:
-        print("Avg per epoch ptime: %.2f, total %d epochs ptime: %.2f" % (torch.mean(torch.FloatTensor(train_hist['per_epoch_ptimes'])), train_epoch, total_ptime))
+        #print("Avg per epoch ptime: %.2f, total %d epochs ptime: %.2f" % (torch.mean(torch.FloatTensor(train_hist['per_epoch_ptimes'])), train_epoch, total_ptime))
         print("Training finish!")
 
     return
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--i', required=False, type=int, default=64, help='size of image')
+parser.add_argument('--d',required=False, type=str, default='cifar10',help='dataset name')
+parser.add_argument('--b',required=False, type=int, default=64,help='batch size')
+opt = parser.parse_args()
+
+
+
+
+run_model(lr=0.002,
+            batch_size=opt.b,
+            train_epoch= 20,
+            img_size=opt.i, 
+            SN_bool=True, 
+            D_param=[0.9,0.1,0.5,0.005],
+            reconstruction_loss_bool=True, 
+            USE_CAPS_D=True, 
+            SAVE_TRAINING=True, 
+            SAVE_IMAGE=True, 
+            num_iter_limit=2000, 
+            verbose=True, 
+            train_loader=None, 
+            hyperparam_tag='1',
+            dataset=opt.d)
+

@@ -133,7 +133,7 @@ def get_data(batch_size=64,i_size=32):
             transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
     ])
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('data', train=True, download=True, transform=transform),
+        datasets.MNIST('../data', train=True, download=True, transform=transform),
         batch_size=batch_size, shuffle=True)
     return train_loader
 

@@ -12,6 +12,8 @@ USE_CUDA=torch.cuda.is_available()
 class ConvLayer(nn.Module):
     def __init__(self, in_channels=1, out_channels=256, kernel_size=9, SN_bool=False):
         super(ConvLayer, self).__init__()
+
+
         if SN_bool:
             self.conv = nn.Conv2d(in_channels=in_channels,
                                    out_channels=out_channels,
@@ -106,15 +108,19 @@ class DigitCaps(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self):
+    def __init__(self,dataset='mnist',img_size=32):
         super(Decoder, self).__init__()
-        
+        self.img_size=img_size
+        self.output_channel=1
+        if dataset=='cifar10':
+            self.output_channel=3
+
         self.reconstraction_layers = nn.Sequential(
-            nn.Linear(16 * 10, 512),
+            nn.Linear(16 * 10, 512*self.output_channel),
             nn.ReLU(inplace=True),
-            nn.Linear(512, 1636),
+            nn.Linear(512*self.output_channel, 1636*self.output_channel),
             nn.ReLU(inplace=True),
-            nn.Linear(1636, 1024),
+            nn.Linear(1636*self.output_channel, self.img_size*self.img_size*self.output_channel),
             nn.Sigmoid()
         )
         
@@ -129,22 +135,27 @@ class Decoder(nn.Module):
         masked = masked.index_select(dim=0, index=Variable(max_length_indices.squeeze(1).data))
         
         reconstructions = self.reconstraction_layers((x * masked[:, :, None, None]).view(x.size(0), -1))
-        reconstructions = reconstructions.view(-1, 1, 32, 32)
+        reconstructions = reconstructions.view(-1,self.output_channel, self.img_size, self.img_size)
         
         return reconstructions, masked
 
 
 class CapsNet(nn.Module):
     def __init__(self,
-                reconstruction_bool=False,SN_bool=False,param=[0.9,0.1,0.5,0.005]):
+                reconstruction_bool=False,SN_bool=False,param=[0.9,0.1,0.5,0.005],dataset='mnist'):
 
         super(CapsNet, self).__init__()
+
+        conv_channel=1
+        if dataset=='cifar10':
+            conv_channel=3
+
         self.param=param
         self.reconstruction_bool=reconstruction_bool
-        self.conv_layer = ConvLayer(SN_bool=SN_bool)
+        self.conv_layer = ConvLayer(in_channels=conv_channel,SN_bool=SN_bool)
         self.primary_capsules = PrimaryCaps(SN_bool=SN_bool)
         self.digit_capsules = DigitCaps()
-        self.decoder = Decoder()
+        self.decoder = Decoder(dataset=dataset)
         
         self.mse_loss = nn.MSELoss()
         
