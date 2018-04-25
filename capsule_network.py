@@ -74,10 +74,12 @@ class DigitCaps(nn.Module):
 
         self.W = nn.Parameter(torch.randn(1, num_routes, num_capsules, out_channels, in_channels))
 
+        
+
+
     def forward(self, x):
         batch_size = x.size(0)
         x = torch.stack([x] * self.num_capsules, dim=2).unsqueeze(4)
-
         W = torch.cat([self.W] * batch_size, dim=0)
         u_hat = torch.matmul(W, x)
 

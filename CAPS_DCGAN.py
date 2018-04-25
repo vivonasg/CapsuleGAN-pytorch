@@ -177,10 +177,11 @@ def run_model(lr=0.002,
 
     #generator
     if dataset=='mnist':
-        G = generator(d=128,output_channels=1)
+        G = generator(d=128,output_channels=1,img_size=img_size)
 
     if dataset=='cifar10':
-        G = generator(d=128,output_channels=3)
+        G = generator(d=128,output_channels=3,img_size=img_size)
+
 
     G.weight_init(mean=0.0, std=0.02)
 
