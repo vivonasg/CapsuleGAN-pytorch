@@ -170,7 +170,7 @@ def run_model(lr=0.002,
 
     # network
     if USE_CAPS_D:
-        D=CapsNet(reconstruction_bool=reconstruction_loss_bool,param=D_param,SN_bool=SN_bool,dataset=dataset) #already initlialized
+        D=CapsNet(reconstruction_bool=reconstruction_loss_bool,param=D_param,SN_bool=SN_bool,dataset=dataset,input_img_size=img_size) #already initlialized
     else:
         D = discriminator(d=128,dataset=dataset)
         D.weight_init(mean=0.0, std=0.02)

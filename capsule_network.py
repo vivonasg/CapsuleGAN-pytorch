@@ -13,7 +13,6 @@ class ConvLayer(nn.Module):
     def __init__(self, in_channels=1, out_channels=256, kernel_size=9, SN_bool=False):
         super(ConvLayer, self).__init__()
 
-
         if SN_bool:
             self.conv = nn.Conv2d(in_channels=in_channels,
                                    out_channels=out_channels,
@@ -21,7 +20,6 @@ class ConvLayer(nn.Module):
                                    stride=1
                                  )
         else:
-
             self.conv = SNConv2d(in_channels=in_channels,
                        out_channels=out_channels,
                        kernel_size=kernel_size,
@@ -38,7 +36,6 @@ class ConvLayer(nn.Module):
 class PrimaryCaps(nn.Module):
     def __init__(self, num_capsules=8, in_channels=256, out_channels=32, kernel_size=9, stride=2, SN_bool=False):
         super(PrimaryCaps, self).__init__()
-
         self.kernel_size=kernel_size
         self.stride=stride
 
@@ -142,7 +139,7 @@ class Decoder(nn.Module):
 
 class CapsNet(nn.Module):
     def __init__(self,
-                reconstruction_bool=False,SN_bool=False,param=[0.9,0.1,0.5,0.005],dataset='mnist'):
+                reconstruction_bool=False,SN_bool=False,param=[0.9,0.1,0.5,0.005],dataset='mnist',input_img_size=32):
 
         super(CapsNet, self).__init__()
 
@@ -153,15 +150,18 @@ class CapsNet(nn.Module):
         self.param=param
         self.reconstruction_bool=reconstruction_bool
         self.conv_layer = ConvLayer(in_channels=conv_channel,SN_bool=SN_bool)
+        output_img_size=int((input_img_size-self.conv_layer.kernel_size)/self.conv_layer.stride + 1)
         self.primary_capsules = PrimaryCaps(SN_bool=SN_bool)
-        self.digit_capsules = DigitCaps()
+        output_img_size=int((output_img_size-self.primary_capsules.kernel_size)/self.primary_capsules.stride + 1)
+        self.digit_capsules = DigitCaps(num_routes=32*output_img_size*output_img_size)
         self.decoder = Decoder(dataset=dataset)
         
         self.mse_loss = nn.MSELoss()
         
     def forward(self, data):
 
-        output = self.digit_capsules(self.primary_capsules(self.conv_layer(data)))
+        output = self.primary_capsules(self.conv_layer(data))
+        output = self.digit_capsules(output)
 
         if self.reconstruction_bool:
             reconstructions, masked = self.decoder(output, data)
