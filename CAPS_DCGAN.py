@@ -10,7 +10,7 @@ from torch.autograd import Variable
 import torchvision.utils as vutils
 from capsule_network import *
 import argparse
-
+import pdb, traceback, sys
 
 USE_CUDA=torch.cuda.is_available()
 
@@ -339,21 +339,25 @@ parser.add_argument('--b',required=False, type=int, default=64,help='batch size'
 opt = parser.parse_args()
 
 
+try:
 
-
-run_model(lr=0.002,
-            batch_size=opt.b,
-            train_epoch= 20,
-            img_size=opt.i, 
-            SN_bool=True, 
-            D_param=[0.9,0.1,0.5,0.005],
-            reconstruction_loss_bool=True, 
-            USE_CAPS_D=True, 
-            SAVE_TRAINING=True, 
-            SAVE_IMAGE=True, 
-            num_iter_limit=2000, 
-            verbose=True, 
-            train_loader=None, 
-            hyperparam_tag='1',
-            dataset=opt.d)
+    run_model(lr=0.002,
+                batch_size=opt.b,
+                train_epoch= 20,
+                img_size=opt.i, 
+                SN_bool=True, 
+                D_param=[0.9,0.1,0.5,0.005],
+                reconstruction_loss_bool=True, 
+                USE_CAPS_D=True, 
+                SAVE_TRAINING=True, 
+                SAVE_IMAGE=True, 
+                num_iter_limit=2000, 
+                verbose=True, 
+                train_loader=None, 
+                hyperparam_tag='1',
+                dataset=opt.d)
+except:
+    type, value, tb = sys.exc_info()
+    traceback.print_exc()
+    pdb.post_mortem(tb)
 
