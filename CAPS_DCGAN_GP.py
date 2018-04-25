@@ -199,7 +199,7 @@ def run_model(lr=0.002,
 
 
     gen_iter_start_time = time.time()
-    num_gen_iter=1000
+    num_gen_iter=3000
     gen_iter=0
     disc_iter=0
     num_disc_iter=5
@@ -357,9 +357,8 @@ def run_model(lr=0.002,
 
         gen_iter_end_time = time.time()
         per_gen_iter_time = gen_iter_end_time - gen_iter_start_time
-        if verbose:
-            print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), train_epoch, per_gen_iter_time, torch.mean(torch.FloatTensor(D_losses)),
-                                                                  torch.mean(torch.FloatTensor(G_losses))))   
+        #if verbose:
+        #print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), train_epoch, per_gen_iter_time, torch.mean(torch.FloatTensor(D_losses)),torch.mean(torch.FloatTensor(G_losses))))   
         train_hist['D_losses'].append(torch.mean(torch.FloatTensor(D_losses)))
         train_hist['G_losses'].append(torch.mean(torch.FloatTensor(G_losses)))
         train_hist['per_epoch_ptimes'].append(per_gen_iter_time)
@@ -371,7 +370,7 @@ def run_model(lr=0.002,
     
 
     if verbose:
-        print("Avg per epoch ptime: %.2f, total %d epochs ptime: %.2f" % (torch.mean(torch.FloatTensor(train_hist['per_epoch_ptimes'])), train_epoch, total_ptime))
+        # print("Avg per epoch ptime: %.2f, total %d epochs ptime: %.2f" % (torch.mean(torch.FloatTensor(train_hist['per_epoch_ptimes'])), train_epoch, total_ptime))
         print("Training finish!")
 
     return
