@@ -155,7 +155,7 @@ class CapsNet(nn.Module):
         self.primary_capsules = PrimaryCaps(SN_bool=SN_bool)
         output_img_size=int((output_img_size-self.primary_capsules.kernel_size)/self.primary_capsules.stride + 1)
         self.digit_capsules = DigitCaps(num_routes=32*output_img_size*output_img_size)
-        self.decoder = Decoder(dataset=dataset)
+        self.decoder = Decoder(dataset=dataset, img_size=input_img_size)
         
         self.mse_loss = nn.MSELoss()
         
