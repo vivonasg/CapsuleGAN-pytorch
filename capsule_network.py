@@ -10,19 +10,20 @@ from src.snlayers.snconv2d import *
 import pdb
 USE_CUDA=torch.cuda.is_available()
 class ConvLayer(nn.Module):
-    def __init__(self, in_channels=1, out_channels=256, kernel_size=9, SN_bool=False):
+    def __init__(self, in_channels=1, out_channels=256, kernel_size=9, SN_bool=False,stride=1):
         super(ConvLayer, self).__init__()
-
+        self.kernel_size=kernel_size
+        self.stride=stride
         if SN_bool:
             self.conv = nn.Conv2d(in_channels=in_channels,
                                    out_channels=out_channels,
-                                   kernel_size=kernel_size,
-                                   stride=1
+                                   kernel_size=self.kernel_size,
+                                   stride=self.stride
                                  )
         else:
             self.conv = SNConv2d(in_channels=in_channels,
                        out_channels=out_channels,
-                       kernel_size=kernel_size,
+                       kernel_size=self.kernel_size,
                        stride=1
                      )
 
