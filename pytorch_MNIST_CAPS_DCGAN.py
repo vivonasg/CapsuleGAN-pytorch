@@ -150,7 +150,7 @@ def run_model(lr=0.002,
             SAVE_IMAGE=True, 
             num_iter_limit=5, 
             verbose=True, 
-            train_loader=train_loader, 
+            train_loader=None, 
             hyperparam_tag='1'):
 
     # network
@@ -189,7 +189,7 @@ def run_model(lr=0.002,
     train_hist = {}
     train_hist['D_losses'] = []
     train_hist['G_losses'] = []
-    train_hist['per_epoch_ptimes'] = []
+    train_hist['per_iter_ptimes'] = []
     train_hist['total_ptime'] = []
     num_iter = 0
 
@@ -201,8 +201,9 @@ def run_model(lr=0.002,
     for epoch in range(train_epoch):
         D_losses = []
         G_losses = []
-        epoch_start_time = time.time()
+        
         for x_, _ in train_loader:
+            iter_start_time = time.time()
             # train discriminator D
             D.zero_grad()
 
@@ -217,28 +218,28 @@ def run_model(lr=0.002,
 
             #D_result = D(x_).squeeze()
             D_result = D(x_)
-            #D_real_loss = BCE_loss(D_result, y_real_)
+            
             #D_real_loss= D.margin_loss(D_result,y_real_)
-
-            D_real_loss= D.loss(data=x_,x=D_result[0],target=y_real_,reconstructions=D_result[1])        
+            D_real_loss=0
+            
+            D_real_loss= D.loss(data=x_,x=D_result[0],target=y_real_,reconstructions=D_result[1])  if USE_CAPS_D else BCE_loss(D_result, y_real_)  
+   
 
             z_ = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1)
-
-            if USE_CUDA:
-                z_ = Variable(z_.cuda())
-            else:
-                z_ = Variable(z_)
+            z_= Variable(z_.cuda()) if USE_CUDA else Variable(z_)
 
             G_result = G(z_)
-
             #D_result = D(G_result).squeeze()
+
             D_result=D(G_result)
-            #D_fake_loss = BCE_loss(D_result, y_fake_)
+            
             #D_fake_loss = D.margin_loss(D_result,y_fake_)
-            D_fake_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_fake_,reconstructions=D_result[1])
+            D_fake_loss=0
+
+            
+            D_fake_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_fake_,reconstructions=D_result[1]) if USE_CAPS_D else BCE_loss(D_result, y_fake_)
 
             D_fake_score = D_result[0].data.mean()
-
             D_train_loss = D_real_loss + D_fake_loss
 
             D_train_loss.backward()
@@ -252,15 +253,12 @@ def run_model(lr=0.002,
 
             z_ = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1)
             D.eval()
-            if USE_CUDA:
-                z_ = Variable(z_.cuda())
-            else:
-                z_ = Variable(z_)
+            z_= Variable(z_.cuda()) if USE_CUDA else Variable(z_)
 
             G_result = G(z_)
             #D_result = D(G_result).squeeze()
             D_result = D(G_result)
-            #G_train_loss = BCE_loss(D_result, y_real_)
+            
             #G_train_loss=D.margin_loss(D_result,y_real_)
             G_train_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_real_,reconstructions=D_result[1])
             G_train_loss.backward()
@@ -269,13 +267,20 @@ def run_model(lr=0.002,
             G_losses.append(G_train_loss.data[0])
             num_iter += 1
 
+            D_tag= 'CAPS' if USE_CAPS_D else 'BASE'
+            tag= hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+D_tag
+
+            iter_end_time = time.time()
+            per_iter_ptime = iter_end_time - iter_start_time
+
+            train_hist['D_losses'].append(D_losses)
+            train_hist['G_losses'].append(G_losses)
+            train_hist['per_iter_ptimes'].append(per_iter_ptime)
 
             if num_iter%100==0 and USE_CAPS_D and SAVE_IMAGE:
-                tag=hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+'_caps
-                p = 'MNIST_DCGAN_results/Random_results/MNIST_DCGAN_'+tag+'.png'
-                fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_DCGAN_'+tag+'.png'
 
-
+                p = 'MNIST_DCGAN_results/Random_results/MNIST_'+tag+'.png'
+                fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_'+tag+'.png'
                 save_result(fixed_p,isFix=True,G=G)
                 save_result(p,isFix=False,G=G)
 
@@ -284,34 +289,20 @@ def run_model(lr=0.002,
                 print('epoch: [%d/%d] batch: [%d] loss_d: %.3f loss_g: %.3f' %  (epoch+1,train_epoch,num_iter,D_train_loss.data[0],G_train_loss.data[0]))
             
             if num_iter>=num_iter_limit and SAVE_TRAINING:
-                tag=hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+'_caps
-                p = 'MNIST_DCGAN_results/Random_results/MNIST_DCGAN_'+tag+'.png'
-                fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_DCGAN_'+tag+'.png'
+                p = 'MNIST_DCGAN_results/Random_results/MNIST_'+tag+'.png'
+                fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_'+tag+'.png'
 
                 save_result(fixed_p,isFix=True,G=G)
                 save_result(p,isFix=False,G=G)
 
-                torch.save(G.state_dict(), "MNIST_DCGAN_results/generator_param_"+tag+".pkl")
-                torch.save(D.state_dict(), "MNIST_DCGAN_results/discriminator_param_param_"+tag+".pkl")
+                #torch.save(G.state_dict(), "MNIST_DCGAN_results/generator_param_"+tag+".pkl")
+                #torch.save(D.state_dict(), "MNIST_DCGAN_results/discriminator_param_param_"+tag+".pkl")
                 with open('MNIST_DCGAN_results/train_hist_'+tag+'.pkl', 'wb') as f:
                     pickle.dump(train_hist, f)
-
-                return
-
-
-        epoch_end_time = time.time()
-        per_epoch_ptime = epoch_end_time - epoch_start_time
+                return       
         if verbose:
             print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), train_epoch, per_epoch_ptime, torch.mean(torch.FloatTensor(D_losses)),
-                                                                  torch.mean(torch.FloatTensor(G_losses))))   
-        train_hist['D_losses'].append(torch.mean(torch.FloatTensor(D_losses)))
-        train_hist['G_losses'].append(torch.mean(torch.FloatTensor(G_losses)))
-        train_hist['per_epoch_ptimes'].append(per_epoch_ptime)
-
-
-    end_time = time.time()
-    total_ptime = end_time - start_time
-    train_hist['total_ptime'].append(total_ptime)
+                                                                  torch.mean(torch.FloatTensor(G_losses))))
     
 
     if verbose:

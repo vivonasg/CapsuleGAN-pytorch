@@ -16,14 +16,15 @@ import argparse
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--n', required=False, type=int, default=1000, help='number of batches')
-parser.add_argument('--b',required=False, type=int, default=128,help='batch size')
+parser.add_argument('--n', required=False, type=int, default=3000, help='number of batches')
+parser.add_argument('--b',required=False, type=int, default=32,help='batch size')
 opt = parser.parse_args()
 
 
 param_hyper=[[0.9],[0.1],[0.5],[0.005]]
-lr_hyper=[0.02]
+lr_hyper=[0.002]
 SN_hyper=[True]
+CAPS_bool=[True,False]
 
 train_loader=get_data(batch_size=opt.b)
 
@@ -33,14 +34,16 @@ for param_0 in param_hyper[0]:
 			for param_3 in param_hyper[3]:
 				for lr in lr_hyper:
 					for SN in SN_hyper:
+						for CAPS in CAPS_bool:
 
-						hyper_tag=str(param_0)+'-'+str(param_1)+'-'+str(param_2)+'-'+str(param_3)+'-'+str(lr)+'-'+str(SN)
-						
-						print(hyper_tag)
+							hyper_tag=str(param_0)+'-'+str(param_1)+'-'+str(param_2)+'-'+str(param_3)+'-'+str(lr)+'-'+str(SN)
+							
+							print(hyper_tag)
 
-						run_model(lr=lr,
-				            SN_bool=SN, 
-				            D_param=[param_0,param_1,param_2,param_3],
-				            num_iter_limit=opt.n,
-				            hyperparam_tag=hyper_tag,
-				            train_loader=train_loader)
+							run_model(lr=lr,
+					            SN_bool=SN, 
+					            D_param=[param_0,param_1,param_2,param_3],
+					            num_iter_limit=opt.n,
+					            hyperparam_tag=hyper_tag,
+					            train_loader=train_loader,
+					            USE_CAPS_D=CAPS)
