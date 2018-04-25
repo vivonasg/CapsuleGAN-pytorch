@@ -21,9 +21,9 @@ parser.add_argument('--b',required=False, type=int, default=128,help='batch size
 opt = parser.parse_args()
 
 
-param_hyper=[[0.7,0.9],[0.1,0.3],[0.5],[0.005,0.01]]
-lr_hyper=[0.002,0.02]
-SN_hyper=[True,False]
+param_hyper=[[0.9],[0.1],[0.5],[0.005]]
+lr_hyper=[0.02]
+SN_hyper=[True]
 
 train_loader=get_data(batch_size=opt.b)
 
