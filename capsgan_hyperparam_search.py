@@ -24,7 +24,7 @@ opt = parser.parse_args()
 param_hyper=[[0.9],[0.1],[0.5],[0.005]]
 lr_hyper=[0.002]
 SN_hyper=[False]
-CAPS_bool=[True]
+CAPS_bool=[False]
 
 train_loader=get_data(batch_size=opt.b)
 
