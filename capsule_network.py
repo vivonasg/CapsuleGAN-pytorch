@@ -195,7 +195,7 @@ class CapsNet(nn.Module):
         right = F.relu(v_c - self.param[1]).view(batch_size, -1)
 
         loss = labels * left*left + self.param[2]*(1.0 - labels)*right*right
-        loss = loss.sum(dim=1).mean()
+        loss = 32*loss.sum(dim=1).mean()
 
         return loss
     
