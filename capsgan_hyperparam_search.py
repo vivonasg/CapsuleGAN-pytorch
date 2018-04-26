@@ -16,13 +16,13 @@ import argparse
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--n', required=False, type=int, default=3000, help='number of batches')
+parser.add_argument('--n', required=False, type=int, default=1000, help='number of batches')
 parser.add_argument('--b',required=False, type=int, default=32,help='batch size')
 opt = parser.parse_args()
 
 
 param_hyper=[[0.9],[0.1],[0.5],[0.005]]
-lr_hyper=[0.002]
+lr_hyper=[0.0002,0.002,0.01]
 SN_hyper=[False]
 CAPS_bool=[True]
 

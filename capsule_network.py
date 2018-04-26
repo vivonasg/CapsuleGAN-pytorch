@@ -201,6 +201,5 @@ class CapsNet(nn.Module):
     
     def reconstruction_loss(self, data, reconstructions):
         loss = self.mse_loss(reconstructions.view(reconstructions.size(0), -1), data.view(reconstructions.size(0), -1))
-        bp()
         return loss * self.param[3]
 
