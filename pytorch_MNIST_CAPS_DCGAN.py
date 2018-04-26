@@ -277,7 +277,7 @@ def run_model(lr=0.002,
             train_hist['G_losses'].append(G_losses)
             train_hist['per_iter_ptimes'].append(per_iter_ptime)
 
-            if num_iter%100==0 and USE_CAPS_D and SAVE_IMAGE:
+            if num_iter%100==0 and SAVE_IMAGE:
 
                 p = 'MNIST_DCGAN_results/Random_results/MNIST_'+tag+'.png'
                 fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_'+tag+'.png'
