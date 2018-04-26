@@ -7,7 +7,7 @@ from torch.autograd import Variable
 from torch.optim import Adam
 from torchvision import datasets, transforms
 from src.snlayers.snconv2d import *
-import pdb
+from pdb import set_trace as bp
 USE_CUDA=torch.cuda.is_available()
 class ConvLayer(nn.Module):
     def __init__(self, in_channels=1, out_channels=256, kernel_size=9, SN_bool=False,stride=1):
@@ -184,22 +184,23 @@ class CapsNet(nn.Module):
 
         if loss_type==1:
             return torch.sqrt((x**2).sum(dim=2, keepdim=True)).mean(0).view(1)
-
+               
 
     def margin_loss(self, x, labels, size_average=True):
         batch_size = len(x)
-
+        labels=labels.view(-1,1)
         v_c = torch.sqrt((x**2).sum(dim=2, keepdim=True))
 
         left = F.relu(self.param[0] - v_c).view(batch_size, -1)
         right = F.relu(v_c - self.param[1]).view(batch_size, -1)
 
-        loss = labels * left*left + self.param[2] * (1.0 - labels) * right*right
+        loss = labels * left*left + self.param[2]*(1.0 - labels)*right*right
         loss = loss.sum(dim=1).mean()
 
         return loss
     
     def reconstruction_loss(self, data, reconstructions):
         loss = self.mse_loss(reconstructions.view(reconstructions.size(0), -1), data.view(reconstructions.size(0), -1))
+        bp()
         return loss * self.param[3]
 
