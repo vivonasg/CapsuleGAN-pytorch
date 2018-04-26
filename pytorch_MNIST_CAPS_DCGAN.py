@@ -286,7 +286,7 @@ def run_model(lr=0.002,
 
 
             if verbose:
-                print('Iter: [%d/%d] loss_d: %.3f loss_g: %.3f' %  (num_iter,num_iter_limit,D_train_loss.data[0],G_train_loss.data[0]))
+                print('Iter: [%d/%d] loss_d: %.3f loss_g: %.3f condition: '+ D_tag %  (num_iter,num_iter_limit,D_train_loss.data[0],G_train_loss.data[0]))
             
             if num_iter>=num_iter_limit and SAVE_TRAINING:
                 p = 'MNIST_DCGAN_results/Random_results/MNIST_'+tag+'.png'
