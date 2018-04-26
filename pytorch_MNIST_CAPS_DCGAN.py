@@ -286,7 +286,7 @@ def run_model(lr=0.002,
 
 
             if verbose:
-                print('epoch: [%d/%d] batch: [%d] loss_d: %.3f loss_g: %.3f' %  (epoch+1,train_epoch,num_iter,D_train_loss.data[0],G_train_loss.data[0]))
+                print('Iter: [%d/%d] loss_d: %.3f loss_g: %.3f' %  (num_iter,num_iter_limit,D_train_loss.data[0],G_train_loss.data[0]))
             
             if num_iter>=num_iter_limit and SAVE_TRAINING:
                 p = 'MNIST_DCGAN_results/Random_results/MNIST_'+tag+'.png'
@@ -300,13 +300,7 @@ def run_model(lr=0.002,
                 with open('MNIST_DCGAN_results/train_hist_'+tag+'.pkl', 'wb') as f:
                     pickle.dump(train_hist, f)
                 return       
-        if verbose:
-            print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), train_epoch, per_epoch_ptime, torch.mean(torch.FloatTensor(D_losses)),
-                                                                  torch.mean(torch.FloatTensor(G_losses))))
-    
 
-    if verbose:
-        print("Avg per epoch ptime: %.2f, total %d epochs ptime: %.2f" % (torch.mean(torch.FloatTensor(train_hist['per_epoch_ptimes'])), train_epoch, total_ptime))
-        print("Training finish!")
+
 
     return
