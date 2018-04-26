@@ -172,7 +172,7 @@ def run_model(lr=0.002,
         D=D.cuda()
 
     # Binary Cross Entropy loss
-    #BCE_loss = nn.BCELoss()
+    BCE_loss = nn.BCELoss()
 
     # Adam optimizer
     G_optimizer = optim.Adam(G.parameters(), lr=lr, betas=(0.5, 0.999))
@@ -260,7 +260,7 @@ def run_model(lr=0.002,
             D_result = D(G_result)
             
             #G_train_loss=D.margin_loss(D_result,y_real_)
-            G_train_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_real_,reconstructions=D_result[1])
+            G_train_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_real_,reconstructions=D_result[1]) if USE_CAPS_D else BCE_loss(D_result, y_real_)
             G_train_loss.backward()
             G_optimizer.step()
 
