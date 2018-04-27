@@ -25,7 +25,7 @@ param_hyper=[[0.9],[0.1],[0.5],[0.005]]
 lr_hyper=[0.002]
 SN_hyper=[False]
 CAPS_bool=[False,True]
-rotate_bool=[True]
+rotate_bool=[False]
 rotate_angle=[15,30,45]
 '''
 def run_model(lr=0.002,

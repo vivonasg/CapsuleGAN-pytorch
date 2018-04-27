@@ -238,7 +238,7 @@ def run_model(lr=0.002,
         G_losses = []
         
         for x_, y_ in train_loader:
-            pdb.set_trace()
+      
             iter_start_time = time.time()
             # train discriminator D
             D.zero_grad()
