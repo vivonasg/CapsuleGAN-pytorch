@@ -10,7 +10,7 @@ from torch.autograd import Variable
 import torchvision.utils as vutils
 from capsule_network import *
 import argparse
-
+import pdb
 
 USE_CUDA=torch.cuda.is_available()
 
@@ -61,19 +61,13 @@ class discriminator(nn.Module):
     def __init__(self, d=128,img_size=32):
         super(discriminator, self).__init__()
         self.img_size=img_size
-        self.conv1 = nn.Conv2d(1, d, 4, 2, 1)
-        self.conv2 = nn.Conv2d(d, d*2, 4, 2, 1)
-        self.conv2_bn = nn.BatchNorm2d(d*2)
-        self.conv3 = nn.Conv2d(d*2, d*4, 4, 2, 1)
-        self.conv3_bn = nn.BatchNorm2d(d*4)
-        self.conv4 = nn.Conv2d(d*4, d*8, 4, 2, 1)
+        self.conv1 = nn.Conv2d(1, d*2, 5)
+        self.conv2 = nn.Conv2d(d*2, d*2, 5)
+        self.conv3 = nn.Conv2d(d*2, d, 5)
         
-        if self.img_size==64:
-            self.conv4 = nn.Conv2d(d*4, d*8, 4, 2, 1)
-            self.conv4_bn = nn.BatchNorm2d(d*8)
-            self.conv5 = nn.Conv2d(d*8, 1, 4, 1, 0)
-        if self.img_size==32:
-            self.conv4 = nn.Conv2d(d*4,1,4,1,0)
+        self.fc1 = nn.Linear(d*20*20,328)
+        self.fc2 = nn.Linear(328,192)
+        self.fc3 = nn.Linear(192,1)
 
     # weight_init
     def weight_init(self, mean, std):
@@ -82,15 +76,23 @@ class discriminator(nn.Module):
 
     # forward method
     def forward(self, input):
-        x = F.leaky_relu(self.conv1(input), 0.2)
-        x = F.leaky_relu(self.conv2_bn(self.conv2(x)), 0.2)
-        x = F.leaky_relu(self.conv3_bn(self.conv3(x)), 0.2)
-        if self.img_size==64:
-            x = F.leaky_relu(self.conv4_bn(self.conv4(x)), 0.2)
-            x = F.sigmoid(self.conv5(x))
-        if self.img_size==32:
-            x=F.sigmoid(self.conv4(x))
+        x = F.relu(self.conv1(input))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+
+        x=x.view(-1,self.num_flat_features(x))
+        x= F.relu(self.fc1(x))
+        x= F.relu(self.fc2(x))
+        x= F.sigmoid(self.fc3(x))
         return x
+
+    def num_flat_features(self,x):
+        size= x.size()[1:]
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
+
 
 def normal_init(m, mean, std):
     if isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Conv2d):
