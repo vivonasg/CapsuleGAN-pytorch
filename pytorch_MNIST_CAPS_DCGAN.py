@@ -11,6 +11,9 @@ import torchvision.utils as vutils
 from capsule_network import *
 import argparse
 import pdb
+import matplotlib.pyplot as plt
+import random
+import cv2
 
 USE_CUDA=torch.cuda.is_available()
 
@@ -58,16 +61,26 @@ class generator(nn.Module):
 
 class discriminator(nn.Module):
     # initializers
-    def __init__(self, d=128,img_size=32):
+    def __init__(self, d=128,img_size=32,dataset='mnist'):
         super(discriminator, self).__init__()
+        self.output_channels=1
+        if dataset=='cifar10':
+            self.output_channels=3
+
         self.img_size=img_size
-        self.conv1 = nn.Conv2d(1, d*2, 5)
-        self.conv2 = nn.Conv2d(d*2, d*2, 5)
-        self.conv3 = nn.Conv2d(d*2, d, 5)
+        self.conv1 = nn.Conv2d(self.output_channels, d, 4, 2, 1)
+        self.conv2 = nn.Conv2d(d, d*2, 4, 2, 1)
+        self.conv2_bn = nn.BatchNorm2d(d*2)
+        self.conv3 = nn.Conv2d(d*2, d*4, 4, 2, 1)
+        self.conv3_bn = nn.BatchNorm2d(d*4)
+        self.conv4 = nn.Conv2d(d*4, d*8, 4, 2, 1)
         
-        self.fc1 = nn.Linear(d*20*20,328)
-        self.fc2 = nn.Linear(328,192)
-        self.fc3 = nn.Linear(192,1)
+        if self.img_size==64:
+            self.conv4 = nn.Conv2d(d*4, d*8, 4, 2, 1)
+            self.conv4_bn = nn.BatchNorm2d(d*8)
+            self.conv5 = nn.Conv2d(d*8, 1, 4, 1, 0)
+        if self.img_size==32:
+            self.conv4 = nn.Conv2d(d*4,1,4,1,0)
 
     # weight_init
     def weight_init(self, mean, std):
@@ -76,22 +89,16 @@ class discriminator(nn.Module):
 
     # forward method
     def forward(self, input):
-        x = F.leaky_relu(self.conv1(input),0.2)
-        x = F.leaky_relu(self.conv2(x),0.2)
-        x = F.leaky_relu(self.conv3(x),0.2)
-
-        x=x.view(-1,self.num_flat_features(x))
-        x= F.leaky_relu(self.fc1(x),0.2)
-        x= F.leaky_relu(self.fc2(x),0.2)
-        x= F.sigmoid(self.fc3(x))
+        x = F.leaky_relu(self.conv1(input), 0.2)
+        x = F.leaky_relu(self.conv2_bn(self.conv2(x)), 0.2)
+        x = F.leaky_relu(self.conv3_bn(self.conv3(x)), 0.2)
+        if self.img_size==64:
+            x = F.leaky_relu(self.conv4_bn(self.conv4(x)), 0.2)
+            x = F.sigmoid(self.conv5(x))
+        if self.img_size==32:
+            x=F.sigmoid(self.conv4(x))
         return x
 
-    def num_flat_features(self,x):
-        size= x.size()[1:]
-        num_features = 1
-        for s in size:
-            num_features *= s
-        return num_features
 
 
 def normal_init(m, mean, std):
@@ -139,6 +146,29 @@ def get_data(batch_size=64,i_size=32):
         batch_size=batch_size, shuffle=True)
     return train_loader
 
+def rotate_batch(img_batch,degree_angle=0,random_bool=False,random_range=[-45,45]):
+    img_batch=img_batch.numpy()
+    cols, rows= img_batch.shape[2:4]
+    background=np.zeros((cols*2,rows*2))
+    background.fill(-1)
+
+    for i in range(len(
+        img_batch)):
+        background[int(cols*0.5):int(cols*0.5)+cols,int(rows*0.5):int(rows*0.5)+rows]=img_batch[i,0,:,:]
+        img=background
+        if random_bool:
+            degree_angle=random.uniform(random_range[0],random_range[1])
+
+        cols2,rows2= img.shape
+        M=cv2.getRotationMatrix2D((cols2/2,rows2/2),degree_angle,1)
+        img = cv2.warpAffine(img,M,(cols2,rows2))
+        img_batch[i,0,:,:] = img[int(cols*0.5):int(cols*0.5)+cols,int(rows*0.5):int(rows*0.5)+rows]
+        
+        plt.imshow(img_batch[i,0,:,:])
+      
+    return torch.from_numpy(img_batch)
+
+
 
 def run_model(lr=0.002,
             batch_size=64,
@@ -153,7 +183,10 @@ def run_model(lr=0.002,
             num_iter_limit=5, 
             verbose=True, 
             train_loader=None, 
-            hyperparam_tag='1'):
+            hyperparam_tag='1', 
+            rotate_bool=True, 
+            rotate_degree_range=45):
+
 
     # network
     if USE_CAPS_D:
@@ -210,7 +243,11 @@ def run_model(lr=0.002,
             D.zero_grad()
 
             mini_batch = x_.size()[0]
-           
+
+            if rotate_bool:
+                x_=rotate_batch(img_batch=x_,random_bool=True,random_range=[-rotate_degree_range,rotate_degree_range])
+
+
             y_real_ = torch.ones(mini_batch)
             y_fake_ = torch.zeros(mini_batch)
             if USE_CUDA:
@@ -268,9 +305,10 @@ def run_model(lr=0.002,
 
             G_losses.append(G_train_loss.data[0])
             num_iter += 1
-
+             
+            rotate_tag='_rotate_'+str(rotate_degree_range) if rotate_bool else ''
             D_tag= 'CAPS' if USE_CAPS_D else 'BASE'
-            tag= hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+D_tag
+            tag= hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+D_tag+rotate_tag
 
             iter_end_time = time.time()
             per_iter_ptime = iter_end_time - iter_start_time
