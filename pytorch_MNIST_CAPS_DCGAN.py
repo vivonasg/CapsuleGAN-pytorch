@@ -11,7 +11,11 @@ import torchvision.utils as vutils
 from capsule_network import *
 import argparse
 import pdb
+<<<<<<< HEAD
 #import matplotlib.pyplot as plt
+=======
+import matplotlib.pyplot as plt
+>>>>>>> d8773411ac00f74a091954927abc3016fbdc3eb8
 import random
 import cv2
 
@@ -165,7 +169,6 @@ def rotate_batch(img_batch,degree_angle=0,random_bool=False,random_range=[-45,45
         img_batch[i,0,:,:] = img[int(cols*0.5):int(cols*0.5)+cols,int(rows*0.5):int(rows*0.5)+rows]
         
         #plt.imshow(img_batch[i,0,:,:])
-      
     return torch.from_numpy(img_batch)
 
 

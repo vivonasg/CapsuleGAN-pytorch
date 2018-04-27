@@ -27,7 +27,6 @@ SN_hyper=[False]
 CAPS_bool=[False,True]
 rotate_bool=[True]
 rotate_angle=[15,30,45]
-
 '''
 def run_model(lr=0.002,
             batch_size=64,
