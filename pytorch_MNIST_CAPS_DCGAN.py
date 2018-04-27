@@ -76,13 +76,13 @@ class discriminator(nn.Module):
 
     # forward method
     def forward(self, input):
-        x = F.relu(self.conv1(input))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
+        x = F.leaky_relu(self.conv1(input),0.2)
+        x = F.leaky_relu(self.conv2(x),0.2)
+        x = F.leaky_relu(self.conv3(x),0.2)
 
         x=x.view(-1,self.num_flat_features(x))
-        x= F.relu(self.fc1(x))
-        x= F.relu(self.fc2(x))
+        x= F.leaky_relu(self.fc1(x),0.2)
+        x= F.leaky_relu(self.fc2(x),0.2)
         x= F.sigmoid(self.fc3(x))
         return x
 
