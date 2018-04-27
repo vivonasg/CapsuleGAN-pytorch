@@ -11,11 +11,8 @@ import torchvision.utils as vutils
 from capsule_network import *
 import argparse
 import pdb
-<<<<<<< HEAD
 #import matplotlib.pyplot as plt
-=======
-import matplotlib.pyplot as plt
->>>>>>> d8773411ac00f74a091954927abc3016fbdc3eb8
+
 import random
 import cv2
 
@@ -240,7 +237,8 @@ def run_model(lr=0.002,
         D_losses = []
         G_losses = []
         
-        for x_, _ in train_loader:
+        for x_, y_ in train_loader:
+            pdb.set_trace()
             iter_start_time = time.time()
             # train discriminator D
             D.zero_grad()
