@@ -347,7 +347,7 @@ def run_model(lr=0.002,
 
                 D_fake_score = D_result[0].data.mean()
                 D_train_loss = D_real_loss + D_fake_loss
-                D_BCE_loss= D_BCE_loss_real+D_BCE_loss_fake
+                #D_BCE_loss= D_BCE_loss_real+D_BCE_loss_fake
 
 
                 D_train_loss.backward()
