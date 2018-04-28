@@ -29,7 +29,7 @@ rotate_bool=[False]
 rotate_angle=[15,30,45]
 
 number_select_bool=True
-number_class=4
+number_class=3
 
 
 '''
