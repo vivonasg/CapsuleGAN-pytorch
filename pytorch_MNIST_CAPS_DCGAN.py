@@ -186,7 +186,7 @@ def run_model(lr=0.002,
             hyperparam_tag='1', 
             rotate_bool=True, 
             rotate_degree_range=45,
-            number_class_bool=False,
+            number_class_bool=True,
             number_class= 4):
 
 
@@ -228,8 +228,8 @@ def run_model(lr=0.002,
     train_hist['G_losses'] = []
     train_hist['per_iter_ptimes'] = []
     train_hist['total_ptime'] = []
-    train_hist['D_BCE_loss'] = []
-    train_hist['G_BCE_loss'] = []
+    #train_hist['D_BCE_loss'] = []
+    #train_hist['G_BCE_loss'] = []
 
 
     if verbose:
@@ -328,7 +328,7 @@ def run_model(lr=0.002,
                 D_real_loss=0
                 #pdb.set_trace()
                 D_real_loss= D.loss(data=x_,x=D_result[0],target=y_real_,reconstructions=D_result[1])  if USE_CAPS_D else BCE_loss(D_result, y_real_)  
-                D_BCE_loss_real=BCE_loss(torch.sqrt((D_result[0]**2).sum(dim=2, keepdim=True)),y_real_) if USE_CAPS_D else 0
+                #D_BCE_loss_real=BCE_loss(torch.sqrt((D_result[0]**2).sum(dim=2, keepdim=True)),y_real_) if USE_CAPS_D else 0
 
                 z_=torch.randn((mini_batch, 100)).view(-1, 100, 1, 1)
                 z_=Variable(z_.cuda()) if USE_CUDA else Variable(z_)
@@ -343,7 +343,7 @@ def run_model(lr=0.002,
 
                 
                 D_fake_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_fake_,reconstructions=D_result[1]) if USE_CAPS_D else BCE_loss(D_result, y_fake_)
-                D_BCE_loss_fake=BCE_loss(torch.sqrt((D_result[0]**2).sum(dim=2, keepdim=True)),y_real_) if USE_CAPS_D else 0
+                #D_BCE_loss_fake=BCE_loss(torch.sqrt((D_result[0]**2).sum(dim=2, keepdim=True)),y_real_) if USE_CAPS_D else 0
 
                 D_fake_score = D_result[0].data.mean()
                 D_train_loss = D_real_loss + D_fake_loss
@@ -369,7 +369,7 @@ def run_model(lr=0.002,
                 
                 #G_train_loss=D.margin_loss(D_result,y_real_)
                 G_train_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_real_,reconstructions=D_result[1]) if USE_CAPS_D else BCE_loss(D_result, y_real_)
-                G_BCE_loss=BCE_loss(torch.sqrt((D_result[0]**2).sum(dim=2, keepdim=True)),y_real_) if USE_CAPS_D else 0
+                #G_BCE_loss=BCE_loss(torch.sqrt((D_result[0]**2).sum(dim=2, keepdim=True)),y_real_) if USE_CAPS_D else 0
 
                 G_train_loss.backward()
                 G_optimizer.step()
@@ -390,8 +390,8 @@ def run_model(lr=0.002,
                 train_hist['G_losses'].append(G_losses)
                 train_hist['per_iter_ptimes'].append(per_iter_ptime)
 
-                train_hist['D_BCE_loss'].append(D_BCE_loss)
-                train_hist['G_BCE_loss'].append(G_BCE_loss)
+                #train_hist['D_BCE_loss'].append(D_BCE_loss)
+                #train_hist['G_BCE_loss'].append(G_BCE_loss)
 
 
                 if num_iter%100==0 and SAVE_IMAGE:
