@@ -24,9 +24,14 @@ opt = parser.parse_args()
 param_hyper=[[0.9],[0.1],[0.5],[0.005]]
 lr_hyper=[0.002]
 SN_hyper=[False]
-CAPS_bool=[False,True]
+CAPS_bool=[True,False]
 rotate_bool=[False]
 rotate_angle=[15,30,45]
+
+number_select_bool=True
+number_class=4
+
+
 '''
 def run_model(lr=0.002,
             batch_size=64,
@@ -70,8 +75,10 @@ for param_0 in param_hyper[0]:
 								            train_loader=train_loader,
 								            USE_CAPS_D=CAPS, 
 								            rotate_bool=rotate,
-								            rotate_degree_range=angle
-								            )
+								            rotate_degree_range=angle,
+								            batch_size=opt.b,
+								            number_class_bool=number_select_bool,
+								            number_class=number_class )
 								else: 		
 									print(hyper_tag)
 									run_model(lr=lr,

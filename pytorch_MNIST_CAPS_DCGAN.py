@@ -171,7 +171,7 @@ def rotate_batch(img_batch,degree_angle=0,random_bool=False,random_range=[-45,45
 
 
 def run_model(lr=0.002,
-            batch_size=64,
+            batch_size=32,
             train_epoch= 20,
             img_size=32, 
             SN_bool=True, 
@@ -185,7 +185,9 @@ def run_model(lr=0.002,
             train_loader=None, 
             hyperparam_tag='1', 
             rotate_bool=True, 
-            rotate_degree_range=45):
+            rotate_degree_range=45,
+            number_class_bool=False,
+            number_class= 4):
 
 
     # network
@@ -226,122 +228,196 @@ def run_model(lr=0.002,
     train_hist['G_losses'] = []
     train_hist['per_iter_ptimes'] = []
     train_hist['total_ptime'] = []
-    num_iter = 0
+    train_hist['D_BCE_loss'] = []
+    train_hist['G_BCE_loss'] = []
+
 
     if verbose:
         print('training start!')
 
 
     start_time = time.time()
-    for epoch in range(train_epoch):
+    x_buffer=[]
+    current_batch_size=0
+    x_list=[]
+    num_iter=0
+    while num_iter<num_iter_limit:
         D_losses = []
         G_losses = []
         
-        for x_, y_ in train_loader:
-      
-            iter_start_time = time.time()
-            # train discriminator D
-            D.zero_grad()
+        for x__, y__ in train_loader:
+            
+            #print(current_batch_size)
+            if number_class_bool:
+                if len(x_buffer)>0:
+                    for x_b in x_buffer:
 
-            mini_batch = x_.size()[0]
+                        if current_batch_size<batch_size:
+                            if current_batch_size+x_b.shape[0]<=batch_size:
+                                x_list.append(x_b)
+                                current_batch_size+=x_b.shape[0]
+                            else:
+                                x_list.append(x_b[:batch_size-current_batch_size])
+                                current_batch_size+=x_list[-1].shape[0]
 
-            if rotate_bool:
-                x_=rotate_batch(img_batch=x_,random_bool=True,random_range=[-rotate_degree_range,rotate_degree_range])
+                    x_buffer=[]
 
 
-            y_real_ = torch.ones(mini_batch)
-            y_fake_ = torch.zeros(mini_batch)
-            if USE_CUDA:
-                x_, y_real_, y_fake_ = Variable(x_).cuda(), Variable(y_real_.cuda()), Variable(y_fake_.cuda())
+               
+                indx=(y__==number_class).nonzero()
+
+                if len(indx)>0:
+
+                    x__=torch.index_select(x__,0,indx.view(indx.shape[0]))
+
+
+                    if current_batch_size<batch_size:
+                        if current_batch_size+x__.shape[0]<=batch_size:
+                            x_list.append(x__)
+                            current_batch_size+=x__.shape[0]
+                        else:
+                            x_list.append(x__[:batch_size-current_batch_size])
+                            x_buffer.append(x__[batch_size-current_batch_size:])
+                            current_batch_size+=x_list[-1].shape[0]
+                            
+
+                
+
             else:
-                x_, y_real_, y_fake_ = Variable(x_), Variable(y_real_), Variable(y_fake_)
 
-            #D_result = D(x_).squeeze()
-            D_result = D(x_)
-            
-            #D_real_loss= D.margin_loss(D_result,y_real_)
-            D_real_loss=0
-            
-            D_real_loss= D.loss(data=x_,x=D_result[0],target=y_real_,reconstructions=D_result[1])  if USE_CAPS_D else BCE_loss(D_result, y_real_)  
-   
-
-            z_ = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1)
-            z_= Variable(z_.cuda()) if USE_CUDA else Variable(z_)
-
-            G_result = G(z_)
-            #D_result = D(G_result).squeeze()
-
-            D_result=D(G_result)
-            
-            #D_fake_loss = D.margin_loss(D_result,y_fake_)
-            D_fake_loss=0
+                current_batch_size=x__.shape[0]
+                x_list.append(x__)
+                
 
             
-            D_fake_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_fake_,reconstructions=D_result[1]) if USE_CAPS_D else BCE_loss(D_result, y_fake_)
+            if current_batch_size==batch_size:
+                x_=x_list[-1]
+                del x_list[-1]
+                if number_class_bool:
+                    while len(x_list)>0:
+                        x_=torch.cat((x_,x_list[-1]))
+                        del x_list[-1]
+                print(x_.shape)
+                
+                x_list= []
+                current_batch_size=len(x_list)
+                num_iter+=1
+                
 
-            D_fake_score = D_result[0].data.mean()
-            D_train_loss = D_real_loss + D_fake_loss
+                iter_start_time = time.time()
+                # train discriminator D
+                D.zero_grad()
 
-            D_train_loss.backward()
-            D_optimizer.step()
+                mini_batch = x_.size()[0]
 
-            # D_losses.append(D_train_loss.data[0])
-            D_losses.append(D_train_loss.data[0])
-
-            # train generator G
-            G.zero_grad()
-
-            z_ = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1)
-            D.eval()
-            z_= Variable(z_.cuda()) if USE_CUDA else Variable(z_)
-
-            G_result = G(z_)
-            #D_result = D(G_result).squeeze()
-            D_result = D(G_result)
-            
-            #G_train_loss=D.margin_loss(D_result,y_real_)
-            G_train_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_real_,reconstructions=D_result[1]) if USE_CAPS_D else BCE_loss(D_result, y_real_)
-            G_train_loss.backward()
-            G_optimizer.step()
-
-            G_losses.append(G_train_loss.data[0])
-            num_iter += 1
-             
-            rotate_tag='_rotate_'+str(rotate_degree_range) if rotate_bool else ''
-            D_tag= 'CAPS' if USE_CAPS_D else 'BASE'
-            tag= hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs_"+str(batch_size)+D_tag+rotate_tag
-
-            iter_end_time = time.time()
-            per_iter_ptime = iter_end_time - iter_start_time
-
-            train_hist['D_losses'].append(D_losses)
-            train_hist['G_losses'].append(G_losses)
-            train_hist['per_iter_ptimes'].append(per_iter_ptime)
-
-            if num_iter%100==0 and SAVE_IMAGE:
-
-                p = 'MNIST_DCGAN_results/Random_results/MNIST_'+tag+'.png'
-                fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_'+tag+'.png'
-                save_result(fixed_p,isFix=True,G=G)
-                save_result(p,isFix=False,G=G)
+                if rotate_bool:
+                    x_=rotate_batch(img_batch=x_,random_bool=True,random_range=[-rotate_degree_range,rotate_degree_range])
 
 
-            if verbose:
-                print('Iter: [%d/%d] loss_d: %.3f loss_g: %.3f condition: %s' %  (num_iter,num_iter_limit,D_train_loss.data[0],G_train_loss.data[0],D_tag))
-            
-            if num_iter>=num_iter_limit and SAVE_TRAINING:
-                p = 'MNIST_DCGAN_results/Random_results/MNIST_'+tag+'.png'
-                fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_'+tag+'.png'
+                y_real_ = torch.ones(mini_batch)
+                y_fake_ = torch.zeros(mini_batch)
+                if USE_CUDA:
+                    x_, y_real_, y_fake_ = Variable(x_).cuda(), Variable(y_real_.cuda()), Variable(y_fake_.cuda())
+                else:
+                    x_, y_real_, y_fake_ = Variable(x_), Variable(y_real_), Variable(y_fake_)
 
-                save_result(fixed_p,isFix=True,G=G)
-                save_result(p,isFix=False,G=G)
+                #D_result = D(x_).squeeze()
+                D_result = D(x_)
+                
+                #D_real_loss= D.margin_loss(D_result,y_real_)
+                D_real_loss=0
+                #pdb.set_trace()
+                D_real_loss= D.loss(data=x_,x=D_result[0],target=y_real_,reconstructions=D_result[1])  if USE_CAPS_D else BCE_loss(D_result, y_real_)  
+                D_BCE_loss_real=BCE_loss(torch.sqrt((D_result[0]**2).sum(dim=2, keepdim=True)),y_real_) if USE_CAPS_D else 0
 
-                #torch.save(G.state_dict(), "MNIST_DCGAN_results/generator_param_"+tag+".pkl")
-                #torch.save(D.state_dict(), "MNIST_DCGAN_results/discriminator_param_param_"+tag+".pkl")
-                with open('MNIST_DCGAN_results/train_hist_'+tag+'.pkl', 'wb') as f:
-                    pickle.dump(train_hist, f)
-                return       
+                z_=torch.randn((mini_batch, 100)).view(-1, 100, 1, 1)
+                z_=Variable(z_.cuda()) if USE_CUDA else Variable(z_)
+
+                G_result = G(z_)
+                #D_result = D(G_result).squeeze()
+
+                D_result=D(G_result)
+                
+                #D_fake_loss = D.margin_loss(D_result,y_fake_)
+                D_fake_loss=0
+
+                
+                D_fake_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_fake_,reconstructions=D_result[1]) if USE_CAPS_D else BCE_loss(D_result, y_fake_)
+                D_BCE_loss_fake=BCE_loss(torch.sqrt((D_result[0]**2).sum(dim=2, keepdim=True)),y_real_) if USE_CAPS_D else 0
+
+                D_fake_score = D_result[0].data.mean()
+                D_train_loss = D_real_loss + D_fake_loss
+                D_BCE_loss= D_BCE_loss_real+D_BCE_loss_fake
 
 
+                D_train_loss.backward()
+                D_optimizer.step()
+
+                # D_losses.append(D_train_loss.data[0])
+                D_losses.append(D_train_loss.data[0])
+
+                # train generator G
+                G.zero_grad()
+
+                z_ = torch.randn((mini_batch, 100)).view(-1, 100, 1, 1)
+                D.eval()
+                z_= Variable(z_.cuda()) if USE_CUDA else Variable(z_)
+
+                G_result = G(z_)
+                #D_result = D(G_result).squeeze()
+                D_result = D(G_result)
+                
+                #G_train_loss=D.margin_loss(D_result,y_real_)
+                G_train_loss= D.loss(data=Variable(G_result.data,volatile=True),x=D_result[0],target=y_real_,reconstructions=D_result[1]) if USE_CAPS_D else BCE_loss(D_result, y_real_)
+                G_BCE_loss=BCE_loss(torch.sqrt((D_result[0]**2).sum(dim=2, keepdim=True)),y_real_) if USE_CAPS_D else 0
+
+                G_train_loss.backward()
+                G_optimizer.step()
+
+                G_losses.append(G_train_loss.data[0])
+                 
+
+
+                number_class_tag='NUM_CLASS-'+str(number_class)+'_' if number_class_bool else ''
+                rotate_tag='_rotate-'+str(rotate_degree_range) if rotate_bool else ''
+                D_tag= '_CAPS' if USE_CAPS_D else '_BASE'
+                tag= number_class_tag+hyperparam_tag +"_"+ str(num_iter) + '_size_'+str(img_size)+"_bs-"+str(batch_size)+D_tag+rotate_tag
+
+                iter_end_time = time.time()
+                per_iter_ptime = iter_end_time - iter_start_time
+
+                train_hist['D_losses'].append(D_losses)
+                train_hist['G_losses'].append(G_losses)
+                train_hist['per_iter_ptimes'].append(per_iter_ptime)
+
+                train_hist['D_BCE_loss'].append(D_BCE_loss)
+                train_hist['G_BCE_loss'].append(G_BCE_loss)
+
+
+                if num_iter%100==0 and SAVE_IMAGE:
+
+                    p = 'MNIST_DCGAN_results/Random_results/MNIST_'+tag+'.png'
+                    fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_'+tag+'.png'
+                    save_result(fixed_p,isFix=True,G=G)
+                    save_result(p,isFix=False,G=G)
+
+
+                if verbose:
+                    print('Iter: [%d/%d] loss_d: %.3f loss_g: %.3f condition: %s' %  (num_iter,num_iter_limit,D_train_loss.data[0],G_train_loss.data[0],D_tag))
+                
+                if num_iter>=num_iter_limit and SAVE_TRAINING:
+                    p = 'MNIST_DCGAN_results/Random_results/MNIST_'+tag+'.png'
+                    fixed_p = 'MNIST_DCGAN_results/Fixed_results/MNIST_'+tag+'.png'
+
+                    save_result(fixed_p,isFix=True,G=G)
+                    save_result(p,isFix=False,G=G)
+
+                    #torch.save(G.state_dict(), "MNIST_DCGAN_results/generator_param_"+tag+".pkl")
+                    #torch.save(D.state_dict(), "MNIST_DCGAN_results/discriminator_param_param_"+tag+".pkl")
+                    with open('MNIST_DCGAN_results/train_hist_'+tag+'.pkl', 'wb') as f:
+                        pickle.dump(train_hist, f)
+                    return
+
+                
 
     return

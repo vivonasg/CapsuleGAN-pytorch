@@ -142,7 +142,7 @@ class Decoder(nn.Module):
 
 class CapsNet(nn.Module):
     def __init__(self,
-                reconstruction_bool=False,SN_bool=False,param=[0.9,0.1,0.5,0.005],dataset='mnist',input_img_size=32):
+                reconstruction_bool=True,SN_bool=False,param=[0.9,0.1,0.5,0.005],dataset='mnist',input_img_size=32):
 
         super(CapsNet, self).__init__()
 
